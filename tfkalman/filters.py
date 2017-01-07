@@ -10,7 +10,7 @@ import numpy as np
 
 class KalmanFilter(object):
 
-    def __init__(self, m=1, n=1, l=1, x=None, A=None, P=None, B=None, H=None, Q=None):
+    def __init__(self, x=None, A=None, P=None, B=None, H=None, Q=None):
         """Initialize a filter
 
         Parameters
@@ -28,9 +28,9 @@ class KalmanFilter(object):
         H : float32 [m, n] -  measurement transition matrix
         """
 
-        self._m = m
-        self._n = n
-        self._l = l
+        m = self._m = H.shape[0]
+        n = self._n = x.shape[0]
+        l = self._l = B.shape[1]
         self._x = tf.Variable(x, dtype=tf.float32, name="x")
         self._A = tf.constant(A, dtype=tf.float32, name="A")
         self._P = tf.Variable(P, dtype=tf.float32, name="P")
@@ -39,8 +39,10 @@ class KalmanFilter(object):
         self._H = tf.constant(H, dtype=tf.float32, name="H")
 
         self._u = tf.placeholder(dtype=tf.float32, shape=[l, 1], name="u")
+
         self._z = tf.placeholder(dtype=tf.float32, shape=[m, 1], name="z")
         self._R = tf.placeholder(dtype=tf.float32, shape=[m, m], name="R")
+
 
     # returns
     # X = a priori projected state at step k
@@ -52,9 +54,9 @@ class KalmanFilter(object):
         B = self._B
         Q = self._Q
         u = self._u
-        self._x = tf.matmul(A, x) + tf.matmul(B, u)
-        self._P = tf.matmul(A, tf.matmul(P, A, transpose_b=True)) + Q
-        return self._x, self._P
+        x_pred = x.assign(tf.matmul(A, x) + tf.matmul(B, u))
+        p_pred = P.assign(tf.matmul(A, tf.matmul(P, A, transpose_b=True)) + Q)
+        return x_pred, p_pred
 
     def correct(self):
         x = self._x
@@ -63,9 +65,9 @@ class KalmanFilter(object):
         z = self._z
         R = self._R
         K = tf.matmul(P, tf.matmul(tf.transpose(H), tf.matrix_inverse(tf.matmul(H, tf.matmul(P, H, transpose_b=True)) + R)))
-        self._x = x + tf.matmul(K, z - tf.matmul(H, x))
-        self._P = tf.matmul((1 - tf.matmul(K, H)), P)
-        return K, x, P
+        x_corr = x.assign(x + tf.matmul(K, z - tf.matmul(H, x)))
+        P_corr = P.assign(tf.matmul((1 - tf.matmul(K, H)), P))
+        return K, x_corr, P_corr
 
     @property
     def x(self):

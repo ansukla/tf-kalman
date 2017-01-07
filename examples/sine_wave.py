@@ -22,8 +22,8 @@ from tfkalman import filters
 rnd = np.random.RandomState(0)
 
 # generate a noisy sine wave to act as our fake observations
-n_timesteps = 100
-x_axis = np.linspace(0, 3 * np.pi, n_timesteps)
+n_timesteps = 200
+x_axis = np.linspace(0, 5 * np.pi, n_timesteps)
 observations = 20 * (np.sin(x_axis) + 0.5 * rnd.randn(n_timesteps))
 
 n = 1
@@ -43,22 +43,19 @@ H = np.ones([1, 1])
 
 u = np.zeros([1, 1])
 
-R = np.array([[0.01]])
+R = np.array([[0.1]])
 
 predictions = []
 with tf.Session() as sess:
-    kf = filters.KalmanFilter(m=m, n=n, l=l, x=x, A=A, B=B, P=P, Q=Q, H=H)
+    kf = filters.KalmanFilter(x=x, A=A, B=B, P=P, Q=Q, H=H)
     predict = kf.predict()
     correct = kf.correct()
     tf.global_variables_initializer().run()
     for i in range(0, n_timesteps):
-        print i
         x_pred, _ = sess.run(predict, feed_dict={kf.u: u})
         # print x_pred, p_pred
         predictions.append(x_pred[0, 0])
-        sess.run(correct, feed_dict={kf.z:np.array([observations[i]]), kf.R:R})
-    # predictions = sess.run(predictions)
-    sess.close()
+        sess.run(correct, feed_dict={kf.z:np.array([[observations[i]]]), kf.R:R})
 
 pl.figure(figsize=(16, 6))
 obs_scatter = pl.scatter(x_axis, observations, marker='x', color='b',
