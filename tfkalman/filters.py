@@ -38,32 +38,33 @@ class KalmanFilter(object):
         self._Q = tf.constant(Q, dtype=tf.float32, name="Q")
         self._H = tf.constant(H, dtype=tf.float32, name="H")
 
+        self._u = tf.placeholder(dtype=tf.float32, shape=[l, 1], name="u")
+        self._z = tf.placeholder(dtype=tf.float32, shape=[m, 1], name="z")
+        self._R = tf.placeholder(dtype=tf.float32, shape=[m, m], name="R")
+
     # returns
     # X = a priori projected state at step k
     # P = projected error covariance at step k
-    def predict(self, u):
+    def predict(self):
         x = self._x
         A = self._A
         P = self._P
         B = self._B
-        u = tf.constant(u, dtype=tf.float32, name="u")
         Q = self._Q
+        u = self._u
         self._x = tf.matmul(A, x) + tf.matmul(B, u)
         self._P = tf.matmul(A, tf.matmul(P, A, transpose_b=True)) + Q
         return self._x, self._P
 
-    def correct(self, z, R):
+    def correct(self):
         x = self._x
         P = self._P
         H = self._H
-        if not tf.is_numeric_tensor(z):
-            z = tf.constant(z, dtype=tf.float32, name="u")
-        if not tf.is_numeric_tensor(R):
-            R = tf.constant(R, dtype=tf.float32, name="z")
-
+        z = self._z
+        R = self._R
         K = tf.matmul(P, tf.matmul(tf.transpose(H), tf.matrix_inverse(tf.matmul(H, tf.matmul(P, H, transpose_b=True)) + R)))
-        x = x + tf.matmul(K, z - tf.matmul(H, x))
-        P = tf.matmul((1 - tf.matmul(K, H)), P)
+        self._x = x + tf.matmul(K, z - tf.matmul(H, x))
+        self._P = tf.matmul((1 - tf.matmul(K, H)), P)
         return K, x, P
 
     @property

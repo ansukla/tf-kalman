@@ -15,39 +15,61 @@ estimates predicted by the Kalman Smoother.
 '''
 import numpy as np
 import pylab as pl
+import tensorflow as tf
 
-from pykalman import KalmanFilter
+from tfkalman import filters
 
 rnd = np.random.RandomState(0)
 
 # generate a noisy sine wave to act as our fake observations
 n_timesteps = 100
-x = np.linspace(0, 3 * np.pi, n_timesteps)
-observations = 20 * (np.sin(x) + 0.5 * rnd.randn(n_timesteps))
+x_axis = np.linspace(0, 3 * np.pi, n_timesteps)
+observations = 20 * (np.sin(x_axis) + 0.5 * rnd.randn(n_timesteps))
 
-# create a Kalman Filter by hinting at the size of the state and observation
-# space.  If you already have good guesses for the initial parameters, put them
-# in here.  The Kalman Filter will try to learn the values of all variables.
-# kf = KalmanFilter(transition_matrices=np.array([[1, 1], [0, 1]]),
-#                   transition_covariance=0.01 * np.eye(2))
+n = 1
+m = 1
+l = 1
+x = np.ones([1, 1])
 
-# You can use the Kalman Filter immediately without fitting, but its estimates
-# may not be as good as if you fit first.
-# states_pred = kf.em(observations).smooth(observations)[0]
-# print('fitted model: {0}'.format(kf))
+A = np.ones([1, 1])
 
-# Plot lines for the observations without noise, the estimated position of the
-# target before fitting, and the estimated position after fitting.
+B = np.zeros([1, 1])
+
+P = np.ones([1, 1])
+
+Q = np.array([[0.005]])
+
+H = np.ones([1, 1])
+
+u = np.zeros([1, 1])
+
+R = np.array([[0.01]])
+
+predictions = []
+with tf.Session() as sess:
+    kf = filters.KalmanFilter(m=m, n=n, l=l, x=x, A=A, B=B, P=P, Q=Q, H=H)
+    predict = kf.predict()
+    correct = kf.correct()
+    tf.global_variables_initializer().run()
+    for i in range(0, n_timesteps):
+        print i
+        x_pred, _ = sess.run(predict, feed_dict={kf.u: u})
+        # print x_pred, p_pred
+        predictions.append(x_pred[0, 0])
+        sess.run(correct, feed_dict={kf.z:np.array([observations[i]]), kf.R:R})
+    # predictions = sess.run(predictions)
+    sess.close()
+
 pl.figure(figsize=(16, 6))
-obs_scatter = pl.scatter(x, observations, marker='x', color='b',
+obs_scatter = pl.scatter(x_axis, observations, marker='x', color='b',
                          label='observations')
-# position_line = pl.plot(x, states_pred[:, 0],
-#                         linestyle='-', marker='o', color='r',
-#                         label='position est.')
+position_line = pl.plot(x_axis, np.array(predictions),
+                        linestyle='-', marker='o', color='r',
+                        label='position est.')
 # velocity_line = pl.plot(x, states_pred[:, 1],
 #                         linestyle='-', marker='o', color='g',
 #                         label='velocity est.')
 pl.legend(loc='lower right')
-pl.xlim(xmin=0, xmax=x.max())
+pl.xlim(xmin=0, xmax=x_axis.max())
 pl.xlabel('time')
 pl.show()
